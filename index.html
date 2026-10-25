@@ -1,264 +1,271 @@
 <!DOCTYPE html>
 <html lang="ko">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>글로벌세탁 회계원리 실습 시뮬레이터</title>
-    <!-- Tailwind CSS CDN -->
-    <script src="https://cdn.tailwindcss.com"></script>
-    <!-- React & Babel CDN -->
-    <script crossorigin src="https://unpkg.com/react@18/umd/react.development.js"></script>
-    <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
-    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>글로벌세탁 회계원리 실습 시뮬레이터</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script crossorigin src="https://unpkg.com/react@18/umd/react.development.js"></script>
+  <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
+  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
 </head>
 <body class="bg-slate-50 text-slate-800">
-    <div id="root"></div>
+  <div id="root"></div>
 
-    <script type="text/babel">
-        function App() {
-            // 거래 단계별 상태 관리 (0: 초기 상태 ~ 12: 결산 수정분개 완료, 13: 마감 완료)
-            const [step, setStep] = React.useState(0);
-            const [isClosed, setIsClosed] = React.useState(false);
+  <script type="text/babel">
+    function App() {
+      const [step, setStep] = React.useState(0);
+      const [isClosed, setIsClosed] = React.useState(false);
 
-            // 글로벌세탁 12개 거래 정의
-            const transactions = [
-                { id: 0, title: "초기 상태 (거래 전)", desc: "모든 계정이 0원으로 시작합니다. 재무제표의 뼈대를 확인하세요.", debit: "-", credit: "-", effect: {} },
-                { id: 1, title: "① 9월 1일: 출자", desc: "현금 300,000원을 출자하여 영업을 시작하다.", debit: "현금 300,000", credit: "자본금 300,000", effect: { cash: 300000, capital: 300000 } },
-                { id: 2, title: "② 9월 9일: 소모품 구입", desc: "소모품 100,000원 구입 (현금 50,000원 지급, 나머지 50,000원은 외상)", debit: "소모품 100,000", credit: "현금 50,000 / 미지급금 50,000", effect: { cash: -50000, supplies: 100000, ap: 50000 } },
-                { id: 3, title: "③ 9월 10일: 차입", desc: "은행에서 현금 200,000원을 차입하다.", debit: "현금 200,000", credit: "차입금 200,000", effect: { cash: 200000, loan: 200000 } },
-                { id: 4, title: "④ 9월 18일: 용역 제공", desc: "세탁 용역을 제공하고 현금 400,000원을 받다.", debit: "현금 400,000", credit: "용역매출 400,000", effect: { cash: 400000, revenue: 400000 } },
-                { id: 5, title: "⑤ 9월 19일: 운송비 지급", desc: "운송비 50,000원을 현금으로 지급하다.", debit: "운송비 50,000", credit: "현금 50,000", effect: { cash: -50000, expTransport: 50000 } },
-                { id: 6, title: "⑥ 9월 20일: 급여 지급", desc: "직원 급여 300,000원을 현금으로 지급하다.", debit: "급여 300,000", credit: "현금 300,000", effect: { cash: -300000, expSalary: 300000 } },
-                { id: 7, title: "⑦ 9월 20일: 현금 배당", desc: "주주에게 현금 배당금 30,000원을 지급하다.", debit: "이익잉여금(배당) 30,000", credit: "현금 30,000", effect: { cash: -30000, retainedEarnings: -30000 } },
-                { id: 8, title: "⑧ 9월 25일: 외상대금 지급", desc: "미지급금 30,000원을 현금으로 지급하다.", debit: "미지급금 30,000", credit: "현금 30,000", effect: { cash: -30000, ap: -30000 } },
-                { id: 9, title: "⑨ 9월 28일: 매출 및 외상매출", desc: "세탁 용역 제공 후 현금 400,000원 수령, 160,000원은 외상", debit: "현금 400,000 / 매출채권 160,000", credit: "용역매출 560,000", effect: { cash: 400000, ar: 160000, revenue: 560000 } },
-                { id: 10, title: "⑩ 9월 30일: 임차료 지급", desc: "9월분 사무실 임차료 400,000원을 현금으로 지급하다.", debit: "임차료 400,000", credit: "현금 400,000", effect: { cash: -400000, expRent: 400000 } },
-                { id: 11, title: "⑪ 9월 30일(결산): 소모품 정리", desc: "기말 소모품 재고 조사 결과 사용액 70,000원 계상", debit: "소모품비 70,000", credit: "소모품 70,000", effect: { supplies: -70000, expSupplies: 70000 } },
-                { id: 12, title: "⑫ 9월 30일(결산): 이자비용 인식", desc: "차입금에 대한 미지급 이자 2,000원 계상", debit: "이자비용 2,000", credit: "미지급비용 2,000", effect: { accruedExp: 2000, expInterest: 2000 } }
-            ];
+      const transactions = [
+        { id: 0, title: '초기 상태 (거래 전)', desc: '모든 계정이 0원으로 시작합니다. 재무제표의 뼈대를 확인하세요.', debit: '-', credit: '-', effect: {} },
+        { id: 1, title: '① 9월 1일: 출자', desc: '현금 300,000원을 출자하여 영업을 시작하다.', debit: '현금 300,000', credit: '자본금 300,000', effect: { cash: 300000, capital: 300000 } },
+        { id: 2, title: '② 9월 9일: 소모품 구입', desc: '소모품 100,000원 구입 (현금 50,000원 지급, 나머지 50,000원은 외상)', debit: '소모품 100,000', credit: '현금 50,000 / 미지급금 50,000', effect: { supplies: 100000, cash: -50000, ap: 50000 } },
+        { id: 3, title: '③ 9월 10일: 차입', desc: '은행에서 현금 200,000원을 차입하다.', debit: '현금 200,000', credit: '차입금 200,000', effect: { cash: 200000, loan: 200000 } },
+        { id: 4, title: '④ 9월 18일: 용역 제공', desc: '세탁 용역을 제공하고 현금 400,000원을 받다.', debit: '현금 400,000', credit: '용역매출 400,000', effect: { cash: 400000, revenue: 400000 } },
+        { id: 5, title: '⑤ 9월 19일: 운송비 지급', desc: '운송비 50,000원을 현금으로 지급하다.', debit: '운송비 50,000', credit: '현금 50,000', effect: { cash: -50000, expTransport: 50000 } },
+        { id: 6, title: '⑥ 9월 20일: 급여 지급', desc: '직원 급여 300,000원을 현금으로 지급하다.', debit: '급여 300,000', credit: '현금 300,000', effect: { cash: -300000, expSalary: 300000 } },
+        { id: 7, title: '⑦ 9월 20일: 현금 배당', desc: '주주에게 현금 배당금 30,000원을 지급하다.', debit: '이익잉여금(배당) 30,000', credit: '현금 30,000', effect: { cash: -30000, retainedEarnings: -30000 } },
+        { id: 8, title: '⑧ 9월 25일: 외상대금 지급', desc: '미지급금 30,000원을 현금으로 지급하다.', debit: '미지급금 30,000', credit: '현금 30,000', effect: { cash: -30000, ap: -30000 } },
+        { id: 9, title: '⑨ 9월 28일: 매출 및 외상매출', desc: '세탁 용역 제공 후 현금 400,000원 수령, 160,000원은 외상', debit: '현금 400,000 / 매출채권 160,000', credit: '용역매출 560,000', effect: { cash: 400000, ar: 160000, revenue: 560000 } },
+        { id: 10, title: '⑩ 9월 30일: 임차료 지급', desc: '9월분 사무실 임차료 400,000원을 현금으로 지급하다.', debit: '임차료 400,000', credit: '현금 400,000', effect: { cash: -400000, expRent: 400000 } },
+        { id: 11, title: '⑪ 9월 30일(결산): 소모품 정리', desc: '기말 소모품 재고 조사 결과 사용액 70,000원 계상', debit: '소모품비 70,000', credit: '소모품 70,000', effect: { supplies: -70000, expSupplies: 70000 } },
+        { id: 12, title: '⑫ 9월 30일(결산): 이자비용 인식', desc: '차입금에 대한 미지급 이자 2,000원 계상', debit: '이자비용 2,000', credit: '미지급비용 2,000', effect: { accruedExp: 2000, expInterest: 2000 } }
+      ];
 
-            // 현재 단계까지의 누적 잔액 계산 함수
-            const calculateBalances = (currentStep, closed) => {
-                let balances = {
-                    cash: 0, ar: 0, supplies: 0,
-                    ap: 20000, accruedExp: 2, loan: 200000, // 초기 미지급금 잔액 2만 원 반영 (거래 ⑧ 이후 남은 금액 등 고려)
-                    capital: 300000, retainedEarningsBase: 0,
-                    rev: 0, rent: 0, salary: 0, transport: 0, suppliesExp: 0, interestExp: 0
-                };
+      const calculateBalances = (currentStep, closed) => {
+        const balances = {
+          cash: 0,
+          ar: 0,
+          supplies: 0,
+          ap: 20000,
+          accruedExp: 0,
+          loan: 200000,
+          capital: 300000,
+          retainedEarningsBase: 0,
+          rev: 0,
+          rent: 0,
+          salary: 0,
+          transport: 0,
+          suppliesExp: 0,
+          interestExp: 0
+        };
 
-                // 거래 1부터 currentStep까지 누적
-                for (let i = 1; i <= currentStep; i++) {
-                    const e = transactions[i].effect;
-                    if (e.cash) balances.cash += e.cash;
-                    if (e.ar) balances.ar += e.ar;
-                    if (e.supplies) balances.supplies += e.supplies;
-                    if (e.ap) balances.ap += e.ap;
-                    if (e.accruedExp) balances.accruedExp += e.accruedExp;
-                    if (e.loan) balances.loan += e.loan;
-                    if (e.capital) balances.capital += e.capital;
-                    if (e.retainedEarnings) balances.retainedEarningsBase += e.retainedEarnings;
-                    
-                    if (e.revenue) balances.rev += e.revenue;
-                    if (e.expTransport) balances.transport += e.expTransport;
-                    if (e.expSalary) balances.salary += e.expSalary;
-                    if (e.expRent) balances.rent += e.expRent;
-                    if (e.expSupplies) balances.suppliesExp += e.expSupplies;
-                    if (e.expInterest) balances.interestExp += e.expInterest;
-                }
+        for (let i = 1; i <= currentStep; i++) {
+          const e = transactions[i].effect;
+          if (e.cash) balances.cash += e.cash;
+          if (e.ar) balances.ar += e.ar;
+          if (e.supplies) balances.supplies += e.supplies;
+          if (e.ap) balances.ap += e.ap;
+          if (e.accruedExp) balances.accruedExp += e.accruedExp;
+          if (e.loan) balances.loan += e.loan;
+          if (e.capital) balances.capital += e.capital;
+          if (e.retainedEarnings) balances.retainedEarningsBase += e.retainedEarnings;
 
-                // 총 수익 및 비용
-                const totalRev = balances.rev;
-                const totalExp = balances.transport + balances.salary + balances.rent + balances.suppliesExp + balances.interestExp;
-                const netIncome = totalRev - totalExp;
-
-                // 마감 처리 반영
-                let finalRE = balances.retainedEarningsBase + netIncome;
-                let finalRev = closed ? 0 : totalRev;
-                let finalExp = closed ? 0 : totalExp;
-
-                return {
-                    cash: balances.cash,
-                    ar: balances.ar,
-                    supplies: balances.supplies,
-                    totalAssets: balances.cash + balances.ar + balances.supplies,
-                    ap: balances.ap,
-                    accruedExp: balances.accruedExp,
-                    loan: balances.loan,
-                    totalLiab: balances.ap + balances.accruedExp + balances.loan,
-                    capital: balances.capital,
-                    retainedEarnings: finalRE,
-                    totalEquity: balances.capital + finalRE,
-                    rev: finalRev,
-                    expenses: {
-                        rent: finalExp > 0 ? balances.rent : 0,
-                        salary: finalExp > 0 ? balances.salary : 0,
-                        transport: finalExp > 0 ? balances.transport : 0,
-                        suppliesExp: finalExp > 0 ? balances.suppliesExp : 0,
-                        interestExp: finalExp > 0 ? balances.interestExp : 0,
-                    },
-                    netIncome: netIncome,
-                    isClosed: closed
-                };
-            };
-
-            const currentData = calculateBalances(step, isClosed);
-
-            return (
-                <div className="max-w-7xl mx-auto p-4 md:p-6">
-                    {/* 상단 타이틀 및 네비게이션 */}
-                    <header className="bg-white rounded-xl shadow-sm p-5 mb-6 border border-slate-100 flex flex-col md:flex-row justify-between items-center gap-4">
-                        <div>
-                            <span className="bg-indigo-100 text-indigo-700 text-xs font-semibold px-2.5 py-1 rounded-full">회계원리 실습 시뮬레이터</span>
-                            <h1 className="text-2xl font-bold text-slate-900 mt-1">글로벌세탁 회계순환과정 시각화</h1>
-                        </div>
-                        <div className="flex items-center gap-3">
-                            <button 
-                                onClick={() => { if(step > 0) { setStep(step - 1); setIsClosed(false); }}}
-                                disabled={step === 0}
-                                className="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg font-medium disabled:opacity-50 transition"
-                            >
-                                이전 거래
-                            </button>
-                            <span className="text-sm font-bold text-indigo-600 bg-indigo-50 px-3 py-2 rounded-lg">
-                                거래 {step} / 12단계
-                            </span>
-                            <button 
-                                onClick={() => { if(step < 12) { setStep(step + 1); setIsClosed(false); }}}
-                                disabled={step === 12}
-                                className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg font-medium disabled:opacity-50 transition"
-                            >
-                                다음 거래 ➡️
-                            </button>
-                        </div>
-                    </header>
-
-                    {/* 현재 입력된 분개 표시 카드 */}
-                    <div className="bg-slate-900 text-white rounded-xl p-5 mb-6 shadow-md">
-                        <div className="flex justify-between items-center mb-2">
-                            <span className="text-xs uppercase tracking-wider text-indigo-400 font-bold">현재 분개장 입력 사항</span>
-                            <span className="text-xs text-slate-400">{transactions[step].title}</span>
-                        </div>
-                        <p className="text-lg font-semibold mb-3">{transactions[step].desc}</p>
-                        <div className="flex flex-wrap gap-4 bg-slate-800 p-3 rounded-lg text-sm">
-                            <div><span className="text-indigo-300 font-bold">[차변]</span> {transactions[step].debit}</div>
-                            <div><span className="text-rose-300 font-bold">[대변]</span> {transactions[step].credit}</div>
-                        </div>
-                    </div>
-
-                    {/* 하단 3분할 대시보드 (재무상태표 및 손익계산서 실시간 연동) */}
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                        
-                        {/* 좌측: 재무상태표 (영구계정) */}
-                        <div className="bg-white rounded-xl shadow-sm p-6 border border-slate-100">
-                            <div className="flex justify-between items-center border-b pb-3 mb-4">
-                                <h2 className="text-lg font-bold text-slate-900">📊 재무상태표 (Balance Sheet)</h2>
-                                <span className="text-xs bg-emerald-100 text-emerald-800 px-2 py-1 rounded font-semibold">영구계정 (차기이월)</span>
-                            </div>
-
-                            <div className="space-y-4 text-sm">
-                                <div>
-                                    <h3 className="font-bold text-indigo-600 mb-2">■ 자산 (Assets)</h3>
-                                    <div className="space-y-1 pl-2 border-l-2 border-indigo-100">
-                                        <div className="flex justify-between"><span>현금</span> <span className="font-mono font-semibold">{currentData.cash.toLocaleString()}원</span></div>
-                                        <div className="flex justify-between"><span>매출채권</span> <span className="font-mono font-semibold">{currentData.ar.toLocaleString()}원</span></div>
-                                        <div className="flex justify-between"><span>소모품</span> <span className="font-mono font-semibold">{currentData.supplies.toLocaleString()}원</span></div>
-                                        <div className="flex justify-between border-t pt-1 font-bold text-slate-900">
-                                            <span>자산 총계</span> <span className="font-mono">{currentData.totalAssets.toLocaleString()}원</span>
-                                        </div>
-                                    </div>
-                                </div>
-
-                                <div>
-                                    <h3 className="font-bold text-rose-600 mb-2">■ 부채 (Liabilities)</h3>
-                                    <div className="space-y-1 pl-2 border-l-2 border-rose-100">
-                                        <div className="flex justify-between"><span>미지급금</span> <span className="font-mono font-semibold">{currentData.ap.toLocaleString()}원</span></div>
-                                        <div className="flex justify-between"><span>미지급비용</span> <span className="font-mono font-semibold">{currentData.accruedExp.toLocaleString()}원</span></div>
-                                        <div className="flex justify-between"><span>차입금</span> <span className="font-mono font-semibold">{currentData.loan.toLocaleString()}원</span></div>
-                                        <div className="flex justify-between border-t pt-1 font-bold text-slate-900">
-                                            <span>부채 총계</span> <span className="font-mono">{currentData.totalLiab.toLocaleString()}원</span>
-                                        </div>
-                                    </div>
-                                </div>
-
-                                <div>
-                                    <h3 className="font-bold text-emerald-600 mb-2">■ 자본 (Equity)</h3>
-                                    <div className="space-y-1 pl-2 border-l-2 border-emerald-100">
-                                        <div className="flex justify-between"><span>자본금</span> <span className="font-mono font-semibold">{currentData.capital.toLocaleString()}원</span></div>
-                                        <div className="flex justify-between">
-                                            <span>이익잉여금 {isClosed && <span className="text-xs text-indigo-600 font-bold">(순이익 대체됨)</span>}</span> 
-                                            <span className="font-mono font-semibold">{currentData.retainedEarnings.toLocaleString()}원</span>
-                                        </div>
-                                        <div className="flex justify-between border-t pt-1 font-bold text-slate-900">
-                                            <span>자본 총계</span> <span className="font-mono">{currentData.totalEquity.toLocaleString()}원</span>
-                                        </div>
-                                    </div>
-                                </div>
-                                <div className="bg-slate-50 p-3 rounded-lg text-center font-bold text-slate-700 mt-2">
-                                    부채와 자본 총계: {(currentData.totalLiab + currentData.totalEquity).toLocaleString()}원
-                                </div>
-                            </div>
-                        </div>
-
-                        {/* 우측: 손익계산서 (임시계정) 및 마감 제어 */}
-                        <div className="bg-white rounded-xl shadow-sm p-6 border border-slate-100 flex flex-col justify-between">
-                            <div>
-                                <div className="flex justify-between items-center border-b pb-3 mb-4">
-                                    <h2 className="text-lg font-bold text-slate-900">📈 손익계산서 (Income Statement)</h2>
-                                    <span className="text-xs bg-amber-100 text-amber-800 px-2 py-1 rounded font-semibold">임시계정 (마감 소멸)</span>
-                                </div>
-
-                                <div className="space-y-4 text-sm">
-                                    <div>
-                                        <h3 className="font-bold text-blue-600 mb-2">■ 수익 (Revenues)</h3>
-                                        <div className="space-y-1 pl-2 border-l-2 border-blue-100">
-                                            <div className="flex justify-between"><span>용역매출</span> <span className="font-mono font-semibold">{currentData.rev.toLocaleString()}원</span></div>
-                                        </div>
-                                    </div>
-
-                                    <div>
-                                        <h3 className="font-bold text-amber-600 mb-2">■ 비용 (Expenses)</h3>
-                                        <div className="space-y-1 pl-2 border-l-2 border-amber-100">
-                                            <div className="flex justify-between"><span>임차료</span> <span className="font-mono font-semibold">{currentData.expenses.rent.toLocaleString()}원</span></div>
-                                            <div className="flex justify-between"><span>급여</span> <span className="font-mono font-semibold">{currentData.expenses.salary.toLocaleString()}원</span></div>
-                                            <div className="flex justify-between"><span>운송비</span> <span className="font-mono font-semibold">{currentData.expenses.transport.toLocaleString()}원</span></div>
-                                            <div className="flex justify-between"><span>소모품비</span> <span className="font-mono font-semibold">{currentData.expenses.suppliesExp.toLocaleString()}원</span></div>
-                                            <div className="flex justify-between"><span>이자비용</span> <span className="font-mono font-semibold">{currentData.expenses.interestExp.toLocaleString()}원</span></div>
-                                        </div>
-                                    </div>
-
-                                    <div className="bg-indigo-50 p-4 rounded-xl border border-indigo-100">
-                                        <div className="flex justify-between font-bold text-indigo-900 text-base">
-                                            <span>당기순이익 (Net Income)</span>
-                                            <span className="font-mono">{currentData.netIncome.toLocaleString()}원</span>
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-
-                            {/* 장부 마감 프로세스 실행 버튼 영역 */}
-                            <div className="mt-6 pt-4 border-t border-slate-100">
-                                <div className="bg-slate-100 p-4 rounded-xl text-center">
-                                    <p className="text-xs text-slate-600 mb-3 font-medium">
-                                        {isClosed 
-                                            ? "✅ 장부 마감이 완료되었습니다! 수익·비용은 0원이 되고 순이익이 이익잉여금에 합산되었습니다." 
-                                            : "💡 결산 완료 후 [장부 마감 실행]을 눌러 임시계정 소멸 및 이익잉여금 대체 과정을 확인하세요."}
-                                    </p>
-                                    <button 
-                                        onClick={() => setIsClosed(!isClosed)}
-                                        className={`w-full py-2.5 rounded-lg font-bold text-white transition ${isClosed ? 'bg-amber-600 hover:bg-amber-700' : 'bg-emerald-600 hover:bg-emerald-700'}`}
-                                    >
-                                        {isClosed ? "마감 취소 (원상복구)" : "🔒 기말 장부 마감 실행 (이익잉여금 대체)"}
-                                    </button>
-                                </div>
-                            </div>
-                        </div>
-
-                    </div>
-                </div>
-            );
+          if (e.revenue) balances.rev += e.revenue;
+          if (e.expTransport) balances.transport += e.expTransport;
+          if (e.expSalary) balances.salary += e.expSalary;
+          if (e.expRent) balances.rent += e.expRent;
+          if (e.expSupplies) balances.expSupplies += e.expSupplies;
+          if (e.expInterest) balances.interestExp += e.expInterest;
         }
 
-        ReactDOM.render(<App />, document.getElementById('root'));
-    </script>
+        const totalRev = balances.rev;
+        const totalExp = balances.transport + balances.salary + balances.rent + balances.suppliesExp + balances.interestExp;
+        const netIncome = totalRev - totalExp;
+        const finalRE = balances.retainedEarningsBase + netIncome;
+        const finalRev = closed ? 0 : totalRev;
+        const finalExp = closed ? 0 : totalExp;
+
+        return {
+          cash: balances.cash,
+          ar: balances.ar,
+          supplies: balances.supplies,
+          totalAssets: balances.cash + balances.ar + balances.supplies,
+          ap: balances.ap,
+          accruedExp: balances.accruedExp,
+          loan: balances.loan,
+          totalLiab: balances.ap + balances.accruedExp + balances.loan,
+          capital: balances.capital,
+          retainedEarnings: finalRE,
+          totalEquity: balances.capital + finalRE,
+          rev: finalRev,
+          expenses: {
+            rent: finalExp > 0 ? balances.rent : 0,
+            salary: finalExp > 0 ? balances.salary : 0,
+            transport: finalExp > 0 ? balances.transport : 0,
+            suppliesExp: finalExp > 0 ? balances.suppliesExp : 0,
+            interestExp: finalExp > 0 ? balances.interestExp : 0
+          },
+          netIncome,
+          isClosed: closed
+        };
+      };
+
+      const currentData = calculateBalances(step, isClosed);
+
+      return (
+        <div className="max-w-7xl mx-auto p-4 md:p-6">
+          <header className="bg-white border border-slate-100 rounded-xl shadow-sm p-5 mb-6 flex flex-col md:flex-row justify-between items-center gap-4">
+            <div>
+              <span className="bg-indigo-100 text-indigo-700 text-xs font-semibold px-2.5 py-1 rounded-full">회계원리 실습 시뮬레이터</span>
+              <h1 className="text-2xl font-bold text-slate-900 mt-1">글로벌세탁 회계순환과정 시각화</h1>
+            </div>
+
+            <div className="flex items-center gap-3">
+              <button
+                onClick={() => {
+                  if (step > 0) {
+                    setStep(step - 1);
+                    setIsClosed(false);
+                  }
+                }}
+                disabled={step === 0}
+                className="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg font-medium disabled:opacity-50 transition"
+              >
+                이전 거래
+              </button>
+
+              <span className="text-sm font-bold text-indigo-600 bg-indigo-50 px-3 py-2 rounded-lg">
+                거래 {step} / 12단계
+              </span>
+
+              <button
+                onClick={() => {
+                  if (step < 12) {
+                    setStep(step + 1);
+                    setIsClosed(false);
+                  }
+                }}
+                disabled={step === 12}
+                className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg font-medium disabled:opacity-50 transition"
+              >
+                다음 거래 ➡️
+              </button>
+            </div>
+          </header>
+
+          <div className="bg-slate-900 text-white rounded-xl p-5 mb-6 shadow-md">
+            <div className="flex justify-between items-center mb-2">
+              <span className="text-xs uppercase tracking-wider text-indigo-400 font-bold">현재 분개장 입력 사항</span>
+              <span className="text-xs text-slate-400">{transactions[step].title}</span>
+            </div>
+            <p className="text-lg font-semibold mb-3">{transactions[step].desc}</p>
+            <div className="flex flex-wrap gap-4 bg-slate-800 p-3 rounded-lg text-sm">
+              <div><span className="text-indigo-300 font-bold">[차변]</span> {transactions[step].debit}</div>
+              <div><span className="text-rose-300 font-bold">[대변]</span> {transactions[step].credit}</div>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div className="bg-white rounded-xl shadow-sm p-6 border border-slate-100">
+              <div className="flex justify-between items-center border-b pb-3 mb-4">
+                <h2 className="text-lg font-bold text-slate-900">📊 재무상태표 (Balance Sheet)</h2>
+                <span className="text-xs bg-emerald-100 text-emerald-800 px-2 py-1 rounded font-semibold">영구계정 (차기이월)</span>
+              </div>
+
+              <div className="space-y-4 text-sm">
+                <div>
+                  <h3 className="font-bold text-indigo-600 mb-2">■ 자산 (Assets)</h3>
+                  <div className="space-y-1 pl-2 border-l-2 border-indigo-100">
+                    <div className="flex justify-between"><span>현금</span> <span className="font-mono font-semibold">{currentData.cash.toLocaleString()}원</span></div>
+                    <div className="flex justify-between"><span>매출채권</span> <span className="font-mono font-semibold">{currentData.ar.toLocaleString()}원</span></div>
+                    <div className="flex justify-between"><span>소모품</span> <span className="font-mono font-semibold">{currentData.supplies.toLocaleString()}원</span></div>
+                    <div className="flex justify-between border-t pt-1 font-bold text-slate-900">
+                      <span>자산 총계</span> <span className="font-mono">{currentData.totalAssets.toLocaleString()}원</span>
+                    </div>
+                  </div>
+                </div>
+
+                <div>
+                  <h3 className="font-bold text-rose-600 mb-2">■ 부채 (Liabilities)</h3>
+                  <div className="space-y-1 pl-2 border-l-2 border-rose-100">
+                    <div className="flex justify-between"><span>미지급금</span> <span className="font-mono font-semibold">{currentData.ap.toLocaleString()}원</span></div>
+                    <div className="flex justify-between"><span>미지급비용</span> <span className="font-mono font-semibold">{currentData.accruedExp.toLocaleString()}원</span></div>
+                    <div className="flex justify-between"><span>차입금</span> <span className="font-mono font-semibold">{currentData.loan.toLocaleString()}원</span></div>
+                    <div className="flex justify-between border-t pt-1 font-bold text-slate-900">
+                      <span>부채 총계</span> <span className="font-mono">{currentData.totalLiab.toLocaleString()}원</span>
+                    </div>
+                  </div>
+                </div>
+
+                <div>
+                  <h3 className="font-bold text-emerald-600 mb-2">■ 자본 (Equity)</h3>
+                  <div className="space-y-1 pl-2 border-l-2 border-emerald-100">
+                    <div className="flex justify-between"><span>자본금</span> <span className="font-mono font-semibold">{currentData.capital.toLocaleString()}원</span></div>
+                    <div className="flex justify-between">
+                      <span>이익잉여금 {isClosed && <span className="text-xs text-indigo-600 font-bold">(순이익 대체됨)</span>}</span>
+                      <span className="font-mono font-semibold">{currentData.retainedEarnings.toLocaleString()}원</span>
+                    </div>
+                    <div className="flex justify-between border-t pt-1 font-bold text-slate-900">
+                      <span>자본 총계</span> <span className="font-mono">{currentData.totalEquity.toLocaleString()}원</span>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="bg-slate-50 p-3 rounded-lg text-center font-bold text-slate-700 mt-2">
+                  부채와 자본 총계: {(currentData.totalLiab + currentData.totalEquity).toLocaleString()}원
+                </div>
+              </div>
+            </div>
+
+            <div className="bg-white rounded-xl shadow-sm p-6 border border-slate-100 flex flex-col justify-between">
+              <div>
+                <div className="flex justify-between items-center border-b pb-3 mb-4">
+                  <h2 className="text-lg font-bold text-slate-900">📈 손익계산서 (Income Statement)</h2>
+                  <span className="text-xs bg-amber-100 text-amber-800 px-2 py-1 rounded font-semibold">임시계정 (마감 소멸)</span>
+                </div>
+
+                <div className="space-y-4 text-sm">
+                  <div>
+                    <h3 className="font-bold text-blue-600 mb-2">■ 수익 (Revenues)</h3>
+                    <div className="space-y-1 pl-2 border-l-2 border-blue-100">
+                      <div className="flex justify-between"><span>용역매출</span> <span className="font-mono font-semibold">{currentData.rev.toLocaleString()}원</span></div>
+                    </div>
+                  </div>
+
+                  <div>
+                    <h3 className="font-bold text-amber-600 mb-2">■ 비용 (Expenses)</h3>
+                    <div className="space-y-1 pl-2 border-l-2 border-amber-100">
+                      <div className="flex justify-between"><span>임차료</span> <span className="font-mono font-semibold">{currentData.expenses.rent.toLocaleString()}원</span></div>
+                      <div className="flex justify-between"><span>급여</span> <span className="font-mono font-semibold">{currentData.expenses.salary.toLocaleString()}원</span></div>
+                      <div className="flex justify-between"><span>운송비</span> <span className="font-mono font-semibold">{currentData.expenses.transport.toLocaleString()}원</span></div>
+                      <div className="flex justify-between"><span>소모품비</span> <span className="font-mono font-semibold">{currentData.expenses.suppliesExp.toLocaleString()}원</span></div>
+                      <div className="flex justify-between"><span>이자비용</span> <span className="font-mono font-semibold">{currentData.expenses.interestExp.toLocaleString()}원</span></div>
+                    </div>
+                  </div>
+
+                  <div className="bg-indigo-50 p-4 rounded-xl border border-indigo-100">
+                    <div className="flex justify-between font-bold text-indigo-900 text-base">
+                      <span>당기순이익 (Net Income)</span>
+                      <span className="font-mono">{currentData.netIncome.toLocaleString()}원</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <div className="mt-6 pt-4 border-t border-slate-100">
+                <div className="bg-slate-100 p-4 rounded-xl text-center">
+                  <p className="text-xs text-slate-600 mb-3 font-medium">
+                    {isClosed
+                      ? '✅ 장부 마감이 완료되었습니다! 수익·비용은 0원이 되고 순이익이 이익잉여금에 합산되었습니다.'
+                      : '💡 결산 완료 후 [장부 마감 실행]을 눌러 임시계정 소멸 및 이익잉여금 대체 과정을 확인하세요.'}
+                  </p>
+                  <button
+                    onClick={() => setIsClosed(!isClosed)}
+                    className={`w-full py-2.5 rounded-lg font-bold text-white transition ${isClosed ? 'bg-amber-600 hover:bg-amber-700' : 'bg-emerald-600 hover:bg-emerald-700'}`}
+                  >
+                    {isClosed ? '마감 취소 (원상복구)' : '🔒 기말 장부 마감 실행 (이익잉여금 대체)'}
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      );
+    }
+
+    ReactDOM.createRoot(document.getElementById('root')).render(<App />);
+  </script>
 </body>
 </html>
