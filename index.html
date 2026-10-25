@@ -28,7 +28,7 @@
             const [step, setStep] = React.useState(0);
             const [isClosed, setIsClosed] = React.useState(false);
             const [animatingAccounts, setAnimatingAccounts] = React.useState([]);
-            const [showFullLedger, setShowFullLedger] = React.useState(false); // 전체 총계정원장 토글
+            const [showFullLedger, setShowFullLedger] = React.useState(false);
 
             const transactions = [
                 { id: 0, title: "초기 상태", desc: "모든 계정이 0원으로 시작합니다.", debit: "-", credit: "-", targets: [] },
@@ -64,7 +64,7 @@
                     accruedExp: { name: "미지급비용 (부채)", debit: [], credit: [] },
                     loan: { name: "차입금 (부채)", debit: [], credit: [] },
                     capital: { name: "자본금 (자본)", debit: [], credit: [] },
-                    retainedEarnings: { name: "이익잉여금 (자본조정/배당)", debit: [], credit: [] },
+                    retainedEarnings: { name: "이익잉여금 (자본)", debit: [], credit: [] },
                     rev: { name: "용역매출 (수익)", debit: [], credit: [] },
                     rent: { name: "임차료 (비용)", debit: [], credit: [] },
                     salary: { name: "급여 (비용)", debit: [], credit: [] },
@@ -107,7 +107,7 @@
                         ledger.cash.credit.push("⑥ 300,000"); balances.cash -= 300000;
                     }
                     if (i === 7) {
-                        balances.retainedEarningsBase -= 30000; // 배당금으로 인한 이익잉여금 감소
+                        balances.retainedEarningsBase -= 30000; // 배당금 지급
                         ledger.retainedEarnings.debit.push("⑦ 30,000(배당)");
                         ledger.cash.credit.push("⑦ 30,000"); balances.cash -= 30000;
                     }
@@ -138,7 +138,29 @@
                 const totalExp = balances.transport + balances.salary + balances.rent + balances.suppliesExp + balances.interestExp;
                 const netIncome = totalRev - totalExp;
 
-                let finalRE = balances.retainedEarningsBase + netIncome;
+                // [수정 핵심]: 마감 전에는 기초 이익잉여금(배당 차감 후)에 순이익을 합산하여 표시하고,
+                // 마감 시에는 순이익을 별도 중복 합산하는 것이 아니라, 이미 포함되어 있는 순이익을 정식 계정(이익잉여금)으로 대체함.
+                if (closed) {
+                    ledger.retainedEarnings.credit.push(`ⓖ 순이익 대체: ${netIncome.toLocaleString()}`);
+                    
+                    if (balances.rev > 0) ledger.rev.debit.push(`ⓐ 집합손익 대체`);
+                    if (balances.rent > 0) ledger.rent.credit.push(`ⓑ 집합손익 대체`);
+                    if (balances.salary > 0) ledger.salary.credit.push(`ⓒ 집합손익 대체`);
+                    if (balances.transport > 0) ledger.transport.credit.push(`ⓓ 집합손익 대체`);
+                    if (balances.suppliesExp > 0) ledger.suppliesExp.credit.push(`ⓔ 집합손익 대체`);
+                    if (balances.interestExp > 0) ledger.interestExp.credit.push(`ⓕ 집합손익 대체`);
+
+                    ledger.cash.credit.push(`차기이월 ${balances.cash.toLocaleString()}`);
+                    if (balances.ar > 0) ledger.ar.credit.push(`차기이월 ${balances.ar.toLocaleString()}`);
+                    if (balances.supplies > 0) ledger.supplies.credit.push(`차기이월 ${balances.supplies.toLocaleString()}`);
+                    if (balances.ap > 0) ledger.ap.debit.push(`차기이월 ${balances.ap.toLocaleString()}`);
+                    if (balances.accruedExp > 0) ledger.accruedExp.debit.push(`차기이월 ${balances.accruedExp.toLocaleString()}`);
+                    if (balances.loan > 0) ledger.loan.debit.push(`차기이월 ${balances.loan.toLocaleString()}`);
+                    ledger.capital.debit.push(`차기이월 ${balances.capital.toLocaleString()}`);
+                    ledger.retainedEarnings.debit.push(`차기이월 ${(balances.retainedEarningsBase + netIncome).toLocaleString()}`);
+                }
+
+                let finalRE = balances.retainedEarningsBase + netIncome; // 이미 마감 전에도 포함되어 있으므로 마감 시 추가 가산하지 않음
                 let finalRev = closed ? 0 : totalRev;
                 let finalExp = closed ? 0 : totalExp;
 
@@ -164,7 +186,9 @@
                         suppliesExp: finalExp > 0 ? balances.suppliesExp : 0,
                         interestExp: finalExp > 0 ? balances.interestExp : 0,
                     },
-                    netIncome: netIncome
+                    netIncome: closed ? 0 : netIncome,
+                    originalNetIncome: netIncome,
+                    isClosed: closed
                 };
             };
 
@@ -211,7 +235,7 @@
                         </div>
                     </header>
 
-                    {/* 누적 분개장 영역 (최신 분개 상단) */}
+                    {/* 누적 분개장 영역 */}
                     <div className="bg-slate-900 text-white rounded-lg p-3 mb-3 shadow-md">
                         <div className="flex justify-between items-center mb-2 border-b border-slate-800 pb-1">
                             <span className="text-[11px] uppercase tracking-wider text-indigo-400 font-bold">📜 누적 분개장 (최신 분개가 상단 표시)</span>
@@ -237,7 +261,10 @@
                     {/* 전체 원장 토글이 켜진 경우 */}
                     {showFullLedger ? (
                         <div className="bg-white rounded-lg shadow-sm p-4 border border-slate-100 mb-3">
-                            <h2 className="text-base font-bold text-slate-900 mb-3 border-b pb-2">📖 전체 총계정원장 (누적 T-계정 모음)</h2>
+                            <div className="flex justify-between items-center mb-3 border-b pb-2">
+                                <h2 className="text-base font-bold text-slate-900">📖 전체 총계정원장 (마감 및 차기이월 반영 T-계정)</h2>
+                                {isClosed && <span className="bg-emerald-100 text-emerald-800 px-2 py-0.5 rounded text-xs font-bold">🔒 기말 마감 완료 상태</span>}
+                            </div>
                             <div className="grid grid-cols-1 md:grid-cols-4 gap-3 text-xs">
                                 {Object.keys(currentData.ledger).map(key => {
                                     const item = currentData.ledger[key];
@@ -247,11 +274,11 @@
                                             <div className="grid grid-cols-2 gap-1 font-mono text-[10px]">
                                                 <div className="border-r pr-1">
                                                     <div className="text-slate-400 text-center border-b">차변</div>
-                                                    {item.debit.length > 0 ? item.debit.map((d, i) => <div key={i}>{d}</div>) : <span className="text-slate-300">-</span>}
+                                                    {item.debit.length > 0 ? item.debit.map((d, i) => <div key={i} className={d.includes('차기이월') ? 'text-emerald-600 font-bold' : ''}>{d}</div>) : <span className="text-slate-300">-</span>}
                                                 </div>
                                                 <div className="pl-1">
                                                     <div className="text-slate-400 text-center border-b">대변</div>
-                                                    {item.credit.length > 0 ? item.credit.map((c, i) => <div key={i}>{c}</div>) : <span className="text-slate-300">-</span>}
+                                                    {item.credit.length > 0 ? item.credit.map((c, i) => <div key={i} className={c.includes('차기이월') || c.includes('대체') ? 'text-emerald-600 font-bold' : ''}>{c}</div>) : <span className="text-slate-300">-</span>}
                                                 </div>
                                             </div>
                                         </div>
@@ -261,7 +288,7 @@
                         </div>
                     ) : null}
 
-                    {/* 재무제표 뷰 (재무상태표 + 손익계산서) */}
+                    {/* 재무제표 뷰 */}
                     <div className="grid grid-cols-1 lg:grid-cols-2 gap-3 mb-3">
                         
                         {/* 재무상태표 */}
@@ -269,22 +296,25 @@
                             <div>
                                 <div className="flex justify-between items-center border-b pb-2 mb-3">
                                     <h2 className="text-base font-bold text-slate-900">📊 재무상태표 (Balance Sheet)</h2>
-                                    <span className="text-[11px] bg-emerald-100 text-emerald-800 px-2 py-0.5 rounded font-semibold">자산 = 부채 + 자본</span>
+                                    <span className="text-[11px] bg-emerald-100 text-emerald-800 px-2 py-0.5 rounded font-semibold">
+                                        {isClosed ? "영구계정 기초 이월 완료" : "자산 = 부채 + 자본"}
+                                    </span>
                                 </div>
 
                                 <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                                     {/* 자산 */}
                                     <div className="bg-slate-50 p-3 rounded-lg border border-slate-200 flex flex-col justify-between">
                                         <div>
-                                            <h3 className="font-bold text-indigo-700 mb-2 border-b pb-1 text-xs">■ 자산 (Assets)</h3>
+                                            <h3 className="font-bold text-indigo-700 mb-2 border-b pb-1 text-xs">■ 자산 (영구계정)</h3>
                                             <div className="space-y-1.5 text-xs">
-                                                <div className={`flex justify-between p-1 rounded transition-colors ${animatingAccounts.includes('cash') ? 'animate-strong-highlight bg-amber-300 font-bold text-slate-900' : ''}`}>
-                                                    <span>현금</span> <span className="font-mono">{currentData.cash.toLocaleString()}원</span>
+                                                <div className="flex justify-between p-1">
+                                                    <span>현금 {isClosed && <small className="text-emerald-600 font-bold">(차기이월)</small>}</span> 
+                                                    <span className="font-mono">{currentData.cash.toLocaleString()}원</span>
                                                 </div>
-                                                <div className={`flex justify-between p-1 rounded transition-colors ${animatingAccounts.includes('ar') ? 'animate-strong-highlight bg-amber-300 font-bold text-slate-900' : ''}`}>
+                                                <div className="flex justify-between p-1">
                                                     <span>매출채권</span> <span className="font-mono">{currentData.ar.toLocaleString()}원</span>
                                                 </div>
-                                                <div className={`flex justify-between p-1 rounded transition-colors ${animatingAccounts.includes('supplies') ? 'animate-strong-highlight bg-amber-300 font-bold text-slate-900' : ''}`}>
+                                                <div className="flex justify-between p-1">
                                                     <span>소모품</span> <span className="font-mono">{currentData.supplies.toLocaleString()}원</span>
                                                 </div>
                                             </div>
@@ -298,29 +328,20 @@
                                     <div className="bg-slate-50 p-3 rounded-lg border border-slate-200 flex flex-col justify-between">
                                         <div className="space-y-3">
                                             <div>
-                                                <h3 className="font-bold text-rose-700 mb-1.5 border-b pb-1 text-xs">■ 부채 (Liabilities)</h3>
+                                                <h3 className="font-bold text-rose-700 mb-1.5 border-b pb-1 text-xs">■ 부채 (영구계정)</h3>
                                                 <div className="space-y-1 text-[11px]">
-                                                    <div className={`flex justify-between p-1 rounded transition-colors ${animatingAccounts.includes('ap') ? 'animate-strong-highlight bg-amber-300 font-bold text-slate-900' : ''}`}>
-                                                        <span>미지급금</span> <span className="font-mono">{currentData.ap.toLocaleString()}원</span>
-                                                    </div>
-                                                    <div className={`flex justify-between p-1 rounded transition-colors ${animatingAccounts.includes('accruedExp') ? 'animate-strong-highlight bg-amber-300 font-bold text-slate-900' : ''}`}>
-                                                        <span>미지급비용</span> <span className="font-mono">{currentData.accruedExp.toLocaleString()}원</span>
-                                                    </div>
-                                                    <div className={`flex justify-between p-1 rounded transition-colors ${animatingAccounts.includes('loan') ? 'animate-strong-highlight bg-amber-300 font-bold text-slate-900' : ''}`}>
-                                                        <span>차입금</span> <span className="font-mono">{currentData.loan.toLocaleString()}원</span>
-                                                    </div>
+                                                    <div className="flex justify-between p-1"><span>미지급금</span> <span className="font-mono">{currentData.ap.toLocaleString()}원</span></div>
+                                                    <div className="flex justify-between p-1"><span>미지급비용</span> <span className="font-mono">{currentData.accruedExp.toLocaleString()}원</span></div>
+                                                    <div className="flex justify-between p-1"><span>차입금</span> <span className="font-mono">{currentData.loan.toLocaleString()}원</span></div>
                                                 </div>
                                             </div>
 
                                             <div>
-                                                <h3 className="font-bold text-emerald-700 mb-1.5 border-b pb-1 text-xs">■ 자본 (Equity)</h3>
+                                                <h3 className="font-bold text-emerald-700 mb-1.5 border-b pb-1 text-xs">■ 자본 (영구계정)</h3>
                                                 <div className="space-y-1 text-[11px]">
-                                                    <div className={`flex justify-between p-1 rounded transition-colors ${animatingAccounts.includes('capital') ? 'animate-strong-highlight bg-amber-300 font-bold text-slate-900' : ''}`}>
-                                                        <span>자본금</span> <span className="font-mono">{currentData.capital.toLocaleString()}원</span>
-                                                    </div>
-                                                    {/* 배당금 지급시 감소하는 이익잉여금 */}
-                                                    <div className={`flex justify-between p-1 rounded transition-colors ${animatingAccounts.includes('retainedEarnings') ? 'animate-strong-highlight bg-amber-300 font-bold text-slate-900' : ''}`}>
-                                                        <span>이익잉여금 <small className="text-[9px] text-indigo-600">(순이익/배당연동)</small></span> 
+                                                    <div className="flex justify-between p-1"><span>자본금</span> <span className="font-mono">{currentData.capital.toLocaleString()}원</span></div>
+                                                    <div className="flex justify-between p-1 font-bold bg-amber-50 rounded">
+                                                        <span>이익잉여금 {isClosed && <small className="text-[9px] text-emerald-600">(마감 후 최종)</small>}</span> 
                                                         <span className="font-mono">{currentData.retainedEarnings.toLocaleString()}원</span>
                                                     </div>
                                                 </div>
@@ -332,7 +353,7 @@
                                     </div>
                                 </div>
                             </div>
-                            <p className="text-[11px] text-slate-400 mt-2 text-center">💡 배당금 지급 시 이익잉여금 잔액이 감소하며 자본 총계에 반영됩니다.</p>
+                            <p className="text-[11px] text-slate-400 mt-2 text-center">💡 마감 전후에도 자산총계와 부채·자본총계는 완벽하게 일치하며, 순이익이 이익잉여금에 정확히 흡수됩니다.</p>
                         </div>
 
                         {/* 손익계산서 및 마감 영역 */}
@@ -340,7 +361,9 @@
                             <div>
                                 <div className="flex justify-between items-center border-b pb-2 mb-3">
                                     <h2 className="text-base font-bold text-slate-900">📈 손익계산서 (Income Statement)</h2>
-                                    <span className="text-[11px] bg-amber-100 text-amber-800 px-2 py-0.5 rounded font-semibold">비용(차변) / 수익(대변)</span>
+                                    <span className={`text-[11px] px-2 py-0.5 rounded font-semibold ${isClosed ? 'bg-rose-100 text-rose-800' : 'bg-amber-100 text-amber-800'}`}>
+                                        {isClosed ? "임시계정 마감 완료 (잔액 0)" : "임시계정 (마감 대상)"}
+                                    </span>
                                 </div>
 
                                 <div className="grid grid-cols-1 md:grid-cols-2 gap-3 text-xs">
@@ -349,11 +372,11 @@
                                         <div>
                                             <h3 className="font-bold text-amber-700 mb-2 border-b pb-1 text-xs">■ 비용 (차변 항목)</h3>
                                             <div className="space-y-1 text-[11px]">
-                                                <div className={`flex justify-between p-1 rounded transition-colors ${animatingAccounts.includes('rent') ? 'animate-strong-highlight bg-amber-300 font-bold text-slate-900' : ''}`}><span>임차료</span> <span className="font-mono">{currentData.expenses.rent.toLocaleString()}원</span></div>
-                                                <div className={`flex justify-between p-1 rounded transition-colors ${animatingAccounts.includes('salary') ? 'animate-strong-highlight bg-amber-300 font-bold text-slate-900' : ''}`}><span>급여</span> <span className="font-mono">{currentData.expenses.salary.toLocaleString()}원</span></div>
-                                                <div className={`flex justify-between p-1 rounded transition-colors ${animatingAccounts.includes('transport') ? 'animate-strong-highlight bg-amber-300 font-bold text-slate-900' : ''}`}><span>운송비</span> <span className="font-mono">{currentData.expenses.transport.toLocaleString()}원</span></div>
-                                                <div className={`flex justify-between p-1 rounded transition-colors ${animatingAccounts.includes('suppliesExp') ? 'animate-strong-highlight bg-amber-300 font-bold text-slate-900' : ''}`}><span>소모품비</span> <span className="font-mono">{currentData.expenses.suppliesExp.toLocaleString()}원</span></div>
-                                                <div className={`flex justify-between p-1 rounded transition-colors ${animatingAccounts.includes('interestExp') ? 'animate-strong-highlight bg-amber-300 font-bold text-slate-900' : ''}`}><span>이자비용</span> <span className="font-mono">{currentData.expenses.interestExp.toLocaleString()}원</span></div>
+                                                <div className="flex justify-between p-1"><span>임차료</span> <span className="font-mono">{currentData.expenses.rent.toLocaleString()}원</span></div>
+                                                <div className="flex justify-between p-1"><span>급여</span> <span className="font-mono">{currentData.expenses.salary.toLocaleString()}원</span></div>
+                                                <div className="flex justify-between p-1"><span>운송비</span> <span className="font-mono">{currentData.expenses.transport.toLocaleString()}원</span></div>
+                                                <div className="flex justify-between p-1"><span>소모품비</span> <span className="font-mono">{currentData.expenses.suppliesExp.toLocaleString()}원</span></div>
+                                                <div className="flex justify-between p-1"><span>이자비용</span> <span className="font-mono">{currentData.expenses.interestExp.toLocaleString()}원</span></div>
                                             </div>
                                         </div>
                                     </div>
@@ -362,18 +385,22 @@
                                     <div className="bg-slate-50 p-3 rounded-lg border border-slate-200 flex flex-col justify-between">
                                         <div>
                                             <h3 className="font-bold text-blue-700 mb-2 border-b pb-1 text-xs">■ 수익 (대변 항목)</h3>
-                                            <div className={`space-y-1 p-1 rounded transition-colors ${animatingAccounts.includes('rev') ? 'animate-strong-highlight bg-amber-300 font-bold text-slate-900' : ''}`}>
+                                            <div className="space-y-1 p-1">
                                                 <div className="flex justify-between"><span>용역매출</span> <span className="font-mono font-semibold">{currentData.rev.toLocaleString()}원</span></div>
                                             </div>
                                         </div>
                                     </div>
                                 </div>
 
-                                <div className={`bg-indigo-50 p-2.5 rounded-lg border border-indigo-100 mt-3 transition-colors ${animatingAccounts.includes('retainedEarnings') ? 'animate-strong-highlight bg-amber-300' : ''}`}>
-                                    <div className="flex justify-between font-bold text-indigo-900 text-xs">
-                                        <span>당기순이익 (Net Income) ➡️ 이익잉여금 직결</span>
-                                        <span className="font-mono">{currentData.netIncome.toLocaleString()}원</span>
-                                    </div>
+                                <div className={`p-2.5 rounded-lg border mt-3 transition-colors ${isClosed ? 'bg-emerald-50 border-emerald-200 text-emerald-900 font-bold text-center' : 'bg-indigo-50 border-indigo-100'}`}>
+                                    {isClosed ? (
+                                        <div className="text-xs">✨ 기말 마감 완료: 모든 수익·비용 계정이 <span className="font-mono text-rose-600 font-bold">0원</span>으로 소멸하고 순이익({currentData.originalNetIncome.toLocaleString()}원)이 이익잉여금 계정으로 정식 대체되었습니다!</div>
+                                    ) : (
+                                        <div className="flex justify-between font-bold text-indigo-900 text-xs">
+                                            <span>당기순이익 (Net Income)</span>
+                                            <span className="font-mono">{currentData.netIncome.toLocaleString()}원</span>
+                                        </div>
+                                    )}
                                 </div>
                             </div>
 
@@ -381,13 +408,13 @@
                             <div className="mt-4 pt-3 border-t border-slate-100">
                                 <div className="bg-slate-100 p-2.5 rounded-lg text-center">
                                     <p className="text-[11px] text-slate-600 mb-1.5 font-medium">
-                                        {isClosed ? "✅ 마감 완료: 손익계정 0원 초기화 및 이익잉여금 대체 반영됨" : "💡 결산 후 마감을 실행하여 이익잉여금 대체 과정을 확인하세요."}
+                                        {isClosed ? "✅ 마감 완료 상태입니다. [마감 취소]를 누르면 원복됩니다." : "💡 결산 후 마감을 실행하여 손익계정 소멸 및 이익잉여금 이월 과정을 확인하세요."}
                                     </p>
                                     <button 
                                         onClick={() => setIsClosed(!isClosed)}
                                         className={`w-full py-1.5 rounded-md font-bold text-white text-xs transition ${isClosed ? 'bg-amber-600 hover:bg-amber-700' : 'bg-emerald-600 hover:bg-emerald-700'}`}
                                     >
-                                        {isClosed ? "마감 취소 (원상복구)" : "🔒 기말 장부 마감 실행 (이익잉여금 대체)"}
+                                        {isClosed ? "마감 취소 (원상복구)" : "🔒 기말 장부 마감 실행 (손익계정 0원 마감)"}
                                     </button>
                                 </div>
                             </div>
@@ -395,13 +422,19 @@
 
                     </div>
 
-                    {/* 화면 하단: 최신 영향받은 총계정원장 (상시 노출) */}
+                    {/* 화면 하단: 최신 영향받은 총계정원장 */}
                     <div className="bg-white rounded-lg shadow-sm p-4 border border-slate-100">
                         <div className="flex justify-between items-center border-b pb-2 mb-3">
                             <h2 className="text-sm font-bold text-slate-900">📖 최근 영향받은 총계정원장 (T-계정 실시간 전기)</h2>
-                            <span className="text-[11px] bg-indigo-50 text-indigo-700 px-2 py-0.5 rounded font-semibold">현재 단계({transactions[step].title}) 관련 원장</span>
+                            <span className="text-[11px] bg-indigo-50 text-indigo-700 px-2 py-0.5 rounded font-semibold">
+                                {isClosed ? "기말 장부 마감 분개 및 차기이월 반영 중" : `현재 단계(${transactions[step].title}) 관련 원장`}
+                            </span>
                         </div>
-                        {step === 0 ? (
+                        {isClosed ? (
+                            <div className="bg-emerald-50 p-3 rounded-lg border border-emerald-200 text-xs text-emerald-900 text-center font-medium">
+                                🔒 <strong>기말 마감 분개 실행됨:</strong> 모든 수익·비용 계정의 잔액이 집합손익계정을 통해 0으로 마감되었으며, 자산·부채·자본의 기말 잔액에는 각각 <strong>차기이월</strong>(초록색 텍스트)이 기재되어 다음 기 기초로 넘어갑니다.
+                            </div>
+                        ) : step === 0 ? (
                             <p className="text-slate-400 text-center py-2 text-xs">초기 상태입니다. [다음 거래]를 진행하세요.</p>
                         ) : (
                             <div className="grid grid-cols-1 md:grid-cols-3 gap-3 text-xs">
